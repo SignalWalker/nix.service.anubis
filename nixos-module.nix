@@ -6,9 +6,11 @@
 }:
 with builtins; let
   std = pkgs.lib;
+  json = pkgs.formats.json {};
   anubis = config.services.anubis;
   anubisInstance = lib.types.submoduleWith {
     modules = [
+      anubis.instanceDefaults
       ({
         name,
         config,
@@ -80,6 +82,10 @@ with builtins; let
                       type = types.str;
                       default = "0770";
                     };
+                    POLICY_FNAME = mkOption {
+                      type = types.path;
+                      default = anubis.defaultPolicyFile;
+                    };
                   };
                 })
               ];
@@ -118,6 +124,22 @@ in {
     services.anubis = {
       enable = (mkEnableOption "Anubis") // {default = anubis.instances != {};};
       package = mkPackageOption pkgs "anubis" {};
+      defaultPolicy = mkOption {
+        type = json.type;
+        default = lib.importJSON "${anubis.package.src}/data/botPolicies.json";
+      };
+      defaultPolicyFile = mkOption {
+        type = types.path;
+        readOnly = true;
+        default = json.generate "botPolicy.json" anubis.defaultPolicy;
+      };
+      instanceDefaults = mkOption {
+        type = types.deferredModuleWith {
+          staticModules = [];
+        };
+        description = "Default configuration merged into each instance.";
+        default = {};
+      };
       instances = mkOption {
         type = types.attrsOf anubisInstance;
         default = {};
